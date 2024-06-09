@@ -109,7 +109,7 @@ class Recipe:
     # This *does* account for chip thining
     @property
     def chip_cross_sectional_area(self) -> np.ndarray:
-        return self.radial_doc * self.feed_per_tooth / self.chip_thining_factor
+        return self.axial_doc * self.feed_per_tooth
 
     # unitless
     @property
@@ -139,17 +139,18 @@ class Optimizer:
     def cutting_force(self):
         sigma = self.material.ultimate_tensile_strength
         flutes = self.avg_engaged_flutes
+        print("flutes.shape: ", flutes.shape)
         wear = self.tool.tool_wear_factor
         area = self.recipe.chip_cross_sectional_area
+        print("area.shape: ", area.shape)
         return  sigma * flutes * wear * area
 
     @property
     def score(self):
         mmr = self.recipe.mmr
         force = self.cutting_force
-        print(mmr.shape, force.shape)
         cond = force > self.settings.max_cutting_force
-        return ma.masked_array(mmr, mask=np.broadcast_to(cond, mmr.shape))
+        return ma.masked_array(mmr, mask=cond)
 
     def compute_best(self):
         score = self.score
@@ -160,7 +161,7 @@ class Optimizer:
         adoc_idx = idx[0]
         rdoc_idx = idx[1]
         fpt_idx = idx[2]
-        print("force: ", self.cutting_force[0, rdoc_idx, fpt_idx])
+        print("force: ", self.cutting_force[idx])
         feed_per_tooth = self.recipe.feed_per_tooth[0, 0, fpt_idx]
         adoc = self.recipe.axial_doc[adoc_idx, 0, 0]
         rdoc = self.recipe.radial_doc[0, fpt_idx, 0]
@@ -194,7 +195,7 @@ my_recipe = Recipe(
     tool = my_tool,
     axial_doc=my_settings.axial_doc,
     radial_doc=my_settings.radial_doc,
-    surface_speed=70,
+    surface_speed=75,
     feed_per_tooth=my_settings.feed_per_tooth)
 
 my_state = Optimizer(Steel1215, my_recipe, my_settings)
